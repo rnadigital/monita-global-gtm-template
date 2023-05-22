@@ -303,7 +303,6 @@ scenarios:
 setup: |-
   const containerVersion = {version: 1, environmentName: "TST", containerId: "ABC" };
   const theWindow = {};
-  let sendPixelCount = 0;
   mock("getContainerVersion", function(){ return containerVersion; });
   mock("getFromWindow", function(key){ return theWindow[key]; });
   mock("setInWindow", function(key, val){ theWindow[key] = val; });
@@ -311,6 +310,6 @@ setup: |-
 
 ___NOTES___
 
-Created on 22/05/2023, 12:21:34
+Created on 22/05/2023, 12:55:01
 
 
