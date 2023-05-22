@@ -16,9 +16,11 @@ homepage: "https://getmonita.io"
 documentation: "http://support.getmonita.io"
 versions:
   # Latest version
+  - sha: a4c41f73e42806a87f3b052fbe68d92a401df5d4
+    changeNotes: Improved unit tests
+  # Older versions
   - sha: 357dc1ba96a5b0e19c4d4207586eac435dd40899
     changeNotes: Fixed metadata file
-  # Older versions
   - sha: 209136ea6ea03b4e5aae48f071ec8f58f44d06af
     changeNotes: Corrected LICENSE file name
   - sha: 040f043ca8da636287ae29f6f538975bb3e5f010
