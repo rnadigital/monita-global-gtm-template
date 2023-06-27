@@ -69,6 +69,8 @@ ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 // Name: Monita
 const injectScript = require("injectScript");
 const setInWindow = require("setInWindow");
+const getQueryParameters = require("getQueryParameters");
+const getTimestampMillis = require("getTimestampMillis");
 const getContainerVersion = require("getContainerVersion");
 const encodeUriComponent = require("encodeUriComponent");
 const logToConsole = require("logToConsole");
@@ -78,7 +80,12 @@ logToConsole(data);
 /**
  * USER CONFIG
  */
-const url = "https://cdn-a.raptor.digital/custom-config/" + encodeUriComponent(data.token) + ".js";
+let appendParam = "";
+if(getQueryParameters("monitarefresh")) {
+  appendParam = "?v=" + encodeUriComponent(getTimestampMillis());
+}
+
+const url = "https://cdn-a.raptor.digital/custom-config/" + encodeUriComponent(data.token) + ".js" + appendParam;
 const containerVersion = getContainerVersion();
 const monitaSettings = data.customFunctions || {};
 /**
@@ -97,8 +104,8 @@ const gtmSettings = {
                     "et": 0,// Execution Time,
                     "vid": null, // ID
                     "cn": null, // Consent (provisioned for future release)
-                    "sid": data.sessionId || "",// Session ID
-                    "cid": data.customerId || "", // customer ID
+                    "sid": data.sessionId || null,// Session ID
+                    "cid": data.customerId || null, // customer ID
                 };
                 return gtm;
             } else {
@@ -237,6 +244,56 @@ ___WEB_PERMISSIONS___
           }
         }
       ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
+    },
+    "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "get_url",
+        "versionId": "1"
+      },
+      "param": [
+        {
+          "key": "queriesAllowed",
+          "value": {
+            "type": 1,
+            "string": "specific"
+          }
+        },
+        {
+          "key": "urlParts",
+          "value": {
+            "type": 1,
+            "string": "specific"
+          }
+        },
+        {
+          "key": "queryKeys",
+          "value": {
+            "type": 2,
+            "listItem": [
+              {
+                "type": 1,
+                "string": "monitarefresh"
+              }
+            ]
+          }
+        },
+        {
+          "key": "query",
+          "value": {
+            "type": 8,
+            "boolean": true
+          }
+        }
+      ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
     },
     "isRequired": true
   }
