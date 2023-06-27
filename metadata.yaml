@@ -16,8 +16,10 @@ homepage: "https://getmonita.io"
 documentation: "http://support.getmonita.io"
 versions:
   # Latest version
+  - sha: 3a25d6a18e7f1884e6f86fbb0402ac79e80292cf
+    changeNotes: Implemented cache breaking query parameter for loaded Monita library. This should help with deployment verification
+  # Older versions
   - sha: 7589e9eccea787323e1364c618f470676984c1d2
     changeNotes: Implemented URI encoding for token
-  # Older versions
   - sha: 0f2c335cbc430409d9cb24318f8f56ae6f18ab66
     changeNotes: Initial release.
