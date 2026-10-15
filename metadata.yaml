@@ -12,13 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-homepage: "https://getmonita.io"
-documentation: "http://support.getmonita.io"
+homepage: "https://monita.ai"
+documentation: "https://docs.monita.ai/install/websites/"
 versions:
   # Latest version
+  - sha: 95ee0c6a9dc2d04de73aa6ed5aed7082c1ba1c05
+    changeNotes: |2
+      New Script host field. New tags load the Monita script from cdn.monita.ai.
+      Existing tags keep loading from cdn-a.raptor.digital until you choose a host.
+      New Script version field: Production, Development, or Development while
+      testing in GTM (Preview, debug and non-Live environments).
+      Events follow the collection endpoint set on the property in Monita,
+      including first-party hostnames.
+  # Older versions
   - sha: 3a25d6a18e7f1884e6f86fbb0402ac79e80292cf
     changeNotes: Implemented cache breaking query parameter for loaded Monita library. This should help with deployment verification
-  # Older versions
   - sha: 7589e9eccea787323e1364c618f470676984c1d2
     changeNotes: Implemented URI encoding for token
   - sha: 0f2c335cbc430409d9cb24318f8f56ae6f18ab66
