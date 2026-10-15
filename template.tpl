@@ -34,11 +34,54 @@ ___TEMPLATE_PARAMETERS___
     "name": "token",
     "displayName": "Token",
     "simpleValueType": true,
+    "help": "The property token from Monita (starts with dom_). Find it on the property's Install dialog.",
     "valueValidators": [
       {
         "type": "NON_EMPTY"
       }
     ]
+  },
+  {
+    "type": "SELECT",
+    "name": "scriptHost",
+    "displayName": "Script host",
+    "macrosInSelect": false,
+    "selectItems": [
+      {
+        "value": "monita",
+        "displayValue": "Monita (cdn.monita.ai)"
+      },
+      {
+        "value": "legacy",
+        "displayValue": "Legacy (cdn-a.raptor.digital)"
+      }
+    ],
+    "simpleValueType": true,
+    "defaultValue": "monita",
+    "help": "Where the Monita script loads from. Both hosts serve the same script. Events go to the collection endpoint set on the property in Monita, including your own first-party hostname when you have one, whichever host you pick here. Choose Legacy only if your Content Security Policy allows cdn-a.raptor.digital but not cdn.monita.ai."
+  },
+  {
+    "type": "SELECT",
+    "name": "scriptEnv",
+    "displayName": "Script version",
+    "macrosInSelect": false,
+    "selectItems": [
+      {
+        "value": "prod",
+        "displayValue": "Production"
+      },
+      {
+        "value": "dev",
+        "displayValue": "Development"
+      },
+      {
+        "value": "auto",
+        "displayValue": "Development while testing in GTM"
+      }
+    ],
+    "simpleValueType": true,
+    "defaultValue": "prod",
+    "help": "Production loads the property's live script. Development loads its dev script (token.dev.js), built from the dev configuration you promote in Monita, and keeps that traffic out of production views. Development while testing in GTM loads the dev script in GTM Preview and debug mode and in any environment other than Live, and the production script everywhere else."
   },
   {
     "type": "TEXT",
@@ -85,8 +128,20 @@ if(getQueryParameters("monitarefresh")) {
   appendParam = "?v=" + encodeUriComponent(getTimestampMillis());
 }
 
-const url = "https://cdn-a.raptor.digital/custom-config/" + encodeUriComponent(data.token) + ".js" + appendParam;
+// cdn.monita.ai is the default for new tags. A tag saved before the Script
+// host field existed has no value and keeps loading from the legacy host it
+// always used, so a Content Security Policy written for it stays valid.
+const SCRIPT_HOSTS = {
+  monita: "https://cdn.monita.ai",
+  legacy: "https://cdn-a.raptor.digital"
+};
+const scriptHost = SCRIPT_HOSTS[data.scriptHost] || SCRIPT_HOSTS.legacy;
 const containerVersion = getContainerVersion();
+// Production unless the tag asks for dev, or asks for dev while the
+// container is being tested (Preview/debug, or a non-Live environment).
+const testingInGtm = !!(containerVersion && (containerVersion.previewMode || containerVersion.debugMode || containerVersion.environmentMode));
+const useDevScript = data.scriptEnv === "dev" || (data.scriptEnv === "auto" && testingInGtm);
+const url = scriptHost + "/custom-config/" + encodeUriComponent(data.token) + (useDevScript ? ".dev.js" : ".js") + appendParam;
 const monitaSettings = data.customFunctions || {};
 /**
  * STANDARD ACTIONS
@@ -207,6 +262,10 @@ ___WEB_PERMISSIONS___
             "listItem": [
               {
                 "type": 1,
+                "string": "https://cdn.monita.ai/custom-config/*"
+              },
+              {
+                "type": 1,
                 "string": "https://cdn-a.raptor.digital/custom-config/*"
               }
             ]
@@ -303,17 +362,83 @@ ___WEB_PERMISSIONS___
 ___TESTS___
 
 scenarios:
-- name: Test inject correct script
+- name: Loads from the Monita host by default
+  code: |-
+    const mockData = {
+      "token": "template_test_script_NO_DELETE",
+      "scriptHost": "monita"
+    };
+
+    runCode(mockData);
+
+    assertThat(injectedUrl).isEqualTo("https://cdn.monita.ai/custom-config/template_test_script_NO_DELETE.js");
+    assertApi('gtmOnSuccess').wasCalled();
+- name: Loads from the legacy host when chosen
+  code: |-
+    const mockData = {
+      "token": "template_test_script_NO_DELETE",
+      "scriptHost": "legacy"
+    };
+
+    runCode(mockData);
+
+    assertThat(injectedUrl).isEqualTo("https://cdn-a.raptor.digital/custom-config/template_test_script_NO_DELETE.js");
+- name: Tags saved before the host field keep the legacy host
   code: |-
     const mockData = {
       "token": "template_test_script_NO_DELETE"
     };
 
-    // Call runCode to run the template's code.
     runCode(mockData);
 
-    // Verify that the tag finished successfully.
-    assertApi('injectScript').wasNotCalledWith("https://cdn-a.raptor.digital/custom-config/template_test_script_NO_DELETE.js");
+    assertThat(injectedUrl).isEqualTo("https://cdn-a.raptor.digital/custom-config/template_test_script_NO_DELETE.js");
+- name: Loads the dev script when Development is chosen
+  code: |-
+    runCode({ "token": "template_test_script_NO_DELETE", "scriptHost": "monita", "scriptEnv": "dev" });
+
+    assertThat(injectedUrl).isEqualTo("https://cdn.monita.ai/custom-config/template_test_script_NO_DELETE.dev.js");
+- name: Auto loads the dev script in GTM Preview
+  code: |-
+    containerVersion.previewMode = true;
+    runCode({ "token": "template_test_script_NO_DELETE", "scriptHost": "monita", "scriptEnv": "auto" });
+
+    assertThat(injectedUrl).isEqualTo("https://cdn.monita.ai/custom-config/template_test_script_NO_DELETE.dev.js");
+- name: Auto loads the dev script in a non Live environment
+  code: |-
+    containerVersion.environmentMode = true;
+    runCode({ "token": "template_test_script_NO_DELETE", "scriptHost": "monita", "scriptEnv": "auto" });
+
+    assertThat(injectedUrl).isEqualTo("https://cdn.monita.ai/custom-config/template_test_script_NO_DELETE.dev.js");
+- name: Auto loads the production script on Live
+  code: |-
+    runCode({ "token": "template_test_script_NO_DELETE", "scriptHost": "monita", "scriptEnv": "auto" });
+
+    assertThat(injectedUrl).isEqualTo("https://cdn.monita.ai/custom-config/template_test_script_NO_DELETE.js");
+- name: Production ignores GTM Preview
+  code: |-
+    containerVersion.previewMode = true;
+    runCode({ "token": "template_test_script_NO_DELETE", "scriptHost": "monita", "scriptEnv": "prod" });
+
+    assertThat(injectedUrl).isEqualTo("https://cdn.monita.ai/custom-config/template_test_script_NO_DELETE.js");
+- name: Encodes the token and adds a cache breaker on monitarefresh
+  code: |-
+    mock("getQueryParameters", function(key) { return key === "monitarefresh" ? "1" : undefined; });
+    mock("getTimestampMillis", function() { return 1234; });
+    const mockData = {
+      "token": "dom_a/b",
+      "scriptHost": "monita"
+    };
+
+    runCode(mockData);
+
+    assertThat(injectedUrl).isEqualTo("https://cdn.monita.ai/custom-config/dom_a%2Fb.js?v=1234");
+- name: Reports failure when the script cannot load
+  code: |-
+    mock("injectScript", function(url, onSuccess, onFailure) { onFailure(); });
+    runCode({ "token": "template_test_script_NO_DELETE", "scriptHost": "monita" });
+
+    assertApi('gtmOnFailure').wasCalled();
+    assertApi('gtmOnSuccess').wasNotCalled();
 - name: Test custom functions
   code: |+
     const mockData = {
@@ -359,11 +484,13 @@ scenarios:
     assertThat(customData.sid).isEqualTo("S123");
     assertThat(customData.cid).isEqualTo("C123");
 setup: |-
-  const containerVersion = {version: 1, environmentName: "TST", containerId: "ABC" };
+  const containerVersion = {version: 1, environmentName: "TST", containerId: "ABC", previewMode: false, debugMode: false, environmentMode: false };
   const theWindow = {};
+  let injectedUrl;
   mock("getContainerVersion", function(){ return containerVersion; });
   mock("getFromWindow", function(key){ return theWindow[key]; });
   mock("setInWindow", function(key, val){ theWindow[key] = val; });
+  mock("injectScript", function(url, onSuccess, onFailure){ injectedUrl = url; onSuccess(); });
 
 
 ___NOTES___
